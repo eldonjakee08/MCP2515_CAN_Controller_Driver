@@ -25,6 +25,7 @@
 
 extern SPI_HandleTypeDef hspi1; 	//extern SPI handle
 
+
 //@SPI_Commands_t
 typedef enum{
 	SPI_COMMAND_RESET 			= 0xC0,
@@ -38,6 +39,7 @@ typedef enum{
 	SPI_COMMAND_BIT_MODIFY 		= 0x05
 }SPI_Commands_t;
 
+
 //@Read_RxBufferLoc_t
 typedef enum{
 	START_RXB0SIDH  = SPI_COMMAND_READ_RX_BUFFER | 0x00, //Receive Buffer 0, start at RXB0SIDH (Receive Buffer 0 Data Byte 0 Register: 0x61 Address)
@@ -45,6 +47,7 @@ typedef enum{
 	START_RXB1SIDH	= SPI_COMMAND_READ_RX_BUFFER | 0X04, //Receive Buffer 1, start at RXB1SIDH (Receive Buffer 1 Standard Identifier High Register: 0x71 Address)
 	START_RXB1D0	= SPI_COMMAND_READ_RX_BUFFER | 0x06	 //Receive Buffer 1, start at RXB1D0 (Receive Buffer 1 Data Byte 0 Register: 0x76 Address)
 }Read_RxBufferLoc_t;
+
 
 //@Load_TxBufferLoc_t
 typedef enum{
@@ -55,6 +58,7 @@ typedef enum{
 	START_TXB2SIDH	= SPI_COMMAND_LOAD_TX_BUFFER | 0X04, //TX Buffer 2, Start at TXB2SIDH (Transmit Buffer 2 Standard Identifier High Register: 0x51 Address)
 	START_TXB2D0	= SPI_COMMAND_LOAD_TX_BUFFER | 0X05  //TX Buffer 2, Start at TXB2D0 (Transmit Buffer 2 Data Byte 0 Register: 0x56 Address)
 }Load_TxBufferLoc_t;
+
 
 //@RTS_TxBuffer_t
 typedef enum{
@@ -82,35 +86,50 @@ typedef struct{
 	uint16_t  	RxBuffer1_Filt3;		//RxBuffer1 Standard 11-bit Identifier Filter 3
 	uint16_t  	RxBuffer1_Filt4;		//RxBuffer1 Standard 11-bit Identifier Filter 4
 	uint16_t  	RxBuffer1_Filt5;		//RxBuffer1 Standard 11-bit Identifier Filter 5
-	uint16_t  	RxBuffer0_AcceptMask;	//RxBuffer1 Standard 11-bit Identifier Acceptance Mask
+	uint16_t  	RxBuffer1_AcceptMask;	//RxBuffer1 Standard 11-bit Identifier Acceptance Mask
 }RxBuffer1_Filter_Val_t;
 
 
 //contains user defined configurations for MCP2515
 typedef struct{
-
 	//Filter Configuration Parameters
-	uint8_t RxBUFFERn_FILT_CFG;		//Specifies which RxBuffer filters to configure. Ref @RxBuffer_Filt_CFG
-	RxBuffer0_Filter_Val_t;			//Input 11-bit Standard Identifier filters for RxBuffer0
-	RxBuffer1_Filter_Val_t;			//Input 11-bit Standard Identifier filters for RxBuffer1
+	uint8_t RxBUFFERn_FILT_CFG;						//Specifies which RxBuffer filters to configure. Ref @RxBuffer_Filt_CFG
+	RxBuffer0_Filter_Val_t RxBuffer0_FILT;			//Input 11-bit Standard Identifier filters for RxBuffer0
+	RxBuffer1_Filter_Val_t RxBuffer1_FILT;			//Input 11-bit Standard Identifier filters for RxBuffer1
 
-	//CAN Bus configuration parameters
+	//CAN Bus timing configuration parameters
 	uint8_t CAN_Speed_Kbps;			//Input desired CAN bus speed. Ref @CAN_Speed_CFG
-	uint8_t MCP2515_Module_Osc; 	//Input oscillator frequency value installed on your MCP2515 module/hardware
+	uint8_t MCP2515_Osc; 			//Input oscillator frequency in MHz installed on your MCP2515 module/hardware
 
 	//Interrupt Configuration Parameters
-
-
+	uint8_t INT_Enable_Mask;		//Specifies which interrupt events are to be enabled. Ref @Interrupt_Enable_Bits
 }MCP2515_CFG_Handle_t;
 
+
 //@RxBuffer_Filt_CFG
-#define RxBUFFER0_FILT_CFG	0X01 	//Configure RxBuffer0 Filters when this is set
-#define RxBUFFER1_FILT_CFG	0X02	//Configure RxBuffer1 Filters when this is set
+#define RxBUFFER0_FILT_CFG_MASK	0X01 	//Configure RxBuffer0 Filters when this is set
+#define RxBUFFER1_FILT_CFG_MASK	0X02	//Configure RxBuffer1 Filters when this is set
 
 //@CAN_Speed_CFG
 #define CAN_SPEED_500Kbps	0x05	//Flag for configuring CAN speed to 500Kbps
 #define CAN_SPEED_250Kbps	0x02	//Flag for configuring CAN speed to 250Kbps
 
+//@Interrupt_Enable_Bits
+#define RxBUFFER0_FULL_IE		1 << 0	//Receive Buffer 0 Full Interrupt Enable bit
+#define RxBUFFER1_FULL_IE		1 << 1	//Receive Buffer 1 Full Interrupt Enable bit
+#define TxBUFFER0_EMPTY_IE		1 << 2	//Transmit Buffer 0 Empty Interrupt Enable bit
+#define TxBUFFER1_EMPTY_IE		1 << 3	//Transmit Buffer 1 Empty Interrupt Enable bit
+#define TxBUFFER2_EMPTY_IE		1 << 4	//Transmit Buffer 2 Empty Interrupt Enable bit
+#define ERROR_IE				1 << 5	//Error Interrupt Enable bit (multiple sources in EFLG register)
+#define WAKEUP_IE				1 << 6	//Wake-up Interrupt Enable bit
+#define MESSAGE_ERR_IE			1 << 7	//Message Error Interrupt Enable bit
+
+//@MCP2515_Modes
+#define CONFIG_MODE			0x4
+#define NORMAL_MODE			0x0
+#define SLEEP_MODE			0x1
+#define LOOPBACK_MODE		0x2
+#define LISTEN_ONLY_MODE	0x3
 
 
 
@@ -119,60 +138,66 @@ typedef struct{
 //@register_address
 /*****Acceptance Filter Registers*****/
 //Receive Buffer0 Filters
-#define RXF0SIDH_ADDR     	0x00 //Filter 0 Standard Identifier High Register
-#define RXF0SIDL_ADDR     	0x01 //Filter 0 Standard Identifier Low Register
-#define RXF0EID8_ADDR    	0x02 //Filter 0 Extended Identifier High Register
-#define RXF0EID0_ADDR     	0x03 //Filter 0 Extended Identifier Low Register
-#define RXF1SIDH_ADDR    	0x04 //Filter 1 Standard Identifier High Register
-#define RXF1SIDL_ADDR    	0x05 //Filter 1 Standard Identifier Low Register
-#define RXF1EID8_ADDR    	0x06 //Filter 1 Extended Identifier High Register
-#define RXF1EID0_ADDR    	0x07 //Filter 1 Extended Identifier Low Register
+//TODO: input shorthand notation of register name in comments
+#define RxBUFFER0_FILTER_SIDH_REG_ADDR     	0x00 //Filter 0 Standard Identifier High Register
+#define RxBUFFER0_FILTER_SIDL_REG_ADDR     	0x01 //Filter 0 Standard Identifier Low Register
+#define RxBUFFER0_FILTER_EID8_REG_ADDR  	0x02 //Filter 0 Extended Identifier High Register
+#define RxBUFFER0_FILTER_EID0_REG_ADDR     	0x03 //Filter 0 Extended Identifier Low Register
+#define RxBUFFER1_FILTER_SIDH_REG_ADDR    	0x04 //Filter 1 Standard Identifier High Register
+#define RxBUFFER1_FILTER_SIDL_REG_ADDR    	0x05 //Filter 1 Standard Identifier Low Register
+#define RxBUFFER1_FILTER_EID8_REG_ADDR    	0x06 //Filter 1 Extended Identifier High Register
+#define RxBUFFER1_FILTER_EID0_REG_ADDR    	0x07 //Filter 1 Extended Identifier Low Register
 
 //Receive Buffer1  Filters
-#define RXF2SIDH_ADDR     	0x08 //Filter 2 Standard Identifier High Register
-#define RXF2SIDL_ADDR    	0x09 //Filter 2 Standard Identifier Low Register
-#define RXF2EID8_ADDR     	0x0A //Filter 2 Extended Identifier High Register
-#define RXF2EID0_ADDR     	0x0B //Filter 2 Extended Identifier Low Register
-#define RXF3SIDH_ADDR     	0x10 //Filter 3 Standard Identifier High Register
-#define RXF3SIDL_ADDR     	0x11 //Filter 3 Standard Identifier Low Register
-#define RXF3EID8_ADDR     	0x12 //Filter 3 Extended Identifier High Register
-#define RXF3EID0_ADDR     	0x13 //Filter 3 Extended Identifier Low Register
-#define RXF4SIDH_ADDR     	0x14 //Filter 4 Standard Identifier High Register
-#define RXF4SIDL_ADDR     	0x15 //Filter 4 Standard Identifier Low Register
-#define RXF4EID8_ADDR     	0x16 //Filter 4 Extended Identifier High Register
-#define RXF4EID0_ADDR     	0x17 //Filter 4 Extended Identifier Low Register
-#define RXF5SIDH_ADDR     	0x18 //Filter 5 Standard Identifier High Register
-#define RXF5SIDL_ADDR     	0x19 //Filter 5 Standard Identifier Low Register
-#define RXF5EID8_ADDR     	0x1A //Filter 5 Extended Identifier High Register
-#define RXF5EID0_ADDR     	0x1B //Filter 5 Extended Identifier Low Register
+//TODO: input shorthand notation of register name in comments
+#define RxBUFFER2_FILTER_SIDH_REG_ADDR     	0x08 //Filter 2 Standard Identifier High Register
+#define RxBUFFER2_FILTER_SIDL_REG_ADDR    	0x09 //Filter 2 Standard Identifier Low Register
+#define RxBUFFER2_FILTER_EID8_REG_ADDR     	0x0A //Filter 2 Extended Identifier High Register
+#define RxBUFFER2_FILTER_EID0_REG_ADDR     	0x0B //Filter 2 Extended Identifier Low Register
+#define RxBUFFER3_FILTER_SIDH_REG_ADDR     	0x10 //Filter 3 Standard Identifier High Register
+#define RxBUFFER3_FILTER_SIDL_REG_ADDR     	0x11 //Filter 3 Standard Identifier Low Register
+#define RxBUFFER3_FILTER_EID8_REG_ADDR     	0x12 //Filter 3 Extended Identifier High Register
+#define RxBUFFER3_FILTER_EID0_REG_ADDR     	0x13 //Filter 3 Extended Identifier Low Register
+#define RxBUFFER4_FILTER_SIDH_REG_ADDR     	0x14 //Filter 4 Standard Identifier High Register
+#define RxBUFFER4_FILTER_SIDL_REG_ADDR     	0x15 //Filter 4 Standard Identifier Low Register
+#define RxBUFFER4_FILTER_EID8_REG_ADDR     	0x16 //Filter 4 Extended Identifier High Register
+#define RxBUFFER4_FILTER_EID0_REG_ADDR     	0x17 //Filter 4 Extended Identifier Low Register
+#define RxBUFFER5_FILTER_SIDH_REG_ADDR     	0x18 //Filter 5 Standard Identifier High Register
+#define RxBUFFER5_FILTER_SIDL_REG_ADDR     	0x19 //Filter 5 Standard Identifier Low Register
+#define RxBUFFER5_FILTER_EID8_REG_ADDR     	0x1A //Filter 5 Extended Identifier High Register
+#define RxBUFFER5_FILTER_EID0_REG_ADDR     	0x1B //Filter 5 Extended Identifier Low Register
 
 /*****Acceptance Filter Mask Registers*****/
-#define RXM0SIDH_ADDR     	0x20 //Receive Buffer 0 Mask Standard Identifier High Register
-#define RXM0SIDL_ADDR     	0x21 //Receive Buffer 0 Mask Standard Identifier Low Register
-#define RXM0EID8_ADDR     	0x22 //Receive Buffer 0 Mask Extended Identifier High Register
-#define RXM0EID0_ADDR     	0x23 //Receive Buffer 0 Mask Extended Identifier Low Register
-#define RXM1SIDH_ADDR     	0x24 //Receive Buffer 1 Mask Standard Identifier High Register
-#define RXM1SIDL_ADDR     	0x25 //Receive Buffer 1 Mask Standard Identifier Low Register
-#define RXM1EID8_ADDR     	0x26 //Receive Buffer 1 Mask Extended Identifier High Register
-#define RXM1EID0_ADDR     	0x27 //Receive Buffer 1 Mask Extended Identifier Low Register
+//TODO: input shorthand notation of register name in comments
+#define RxBUFFER0_MASK_SIDH_REG_ADDR     	0x20 //Receive Buffer 0 Mask Standard Identifier High Register
+#define RxBUFFER0_MASK_SIDL_REG_ADDR     	0x21 //Receive Buffer 0 Mask Standard Identifier Low Register
+#define RxBUFFER0_MASK_EID8_REG_ADDR     	0x22 //Receive Buffer 0 Mask Extended Identifier High Register
+#define RxBUFFER0_MASK_EID0_REG_ADDR     	0x23 //Receive Buffer 0 Mask Extended Identifier Low Register
+#define RxBUFFER1_MASK_SIDH_REG_ADDR     	0x24 //Receive Buffer 1 Mask Standard Identifier High Register
+#define RxBUFFER1_MASK_SIDL_REG_ADDR     	0x25 //Receive Buffer 1 Mask Standard Identifier Low Register
+#define RxBUFFER1_MASK_EID8_REG_ADDR     	0x26 //Receive Buffer 1 Mask Extended Identifier High Register
+#define RxBUFFER1_MASK_EID0_REG_ADDR     	0x27 //Receive Buffer 1 Mask Extended Identifier Low Register
 
 /******************Transmit Buffer Registers******************/
 //Transmit Buffer 0
-#define TXB0SIDH_ADDR     	0x31 //Transmit Buffer 0 Standard Identifier High Register
-#define TXB0SIDL_ADDR     	0x32 //Transmit Buffer 0 Standard Identifier Low Register
-#define TXB0EID8_ADDR     	0x33 //Transmit Buffer 0 Extended Identifier High Register
-#define TXB0EID0_ADDR     	0x34 //Transmit Buffer 0 Extended Identifier Low Register
-#define TXB0DLC_ADDR      	0x35 //Transmit Buffer 0 Data Length Code Register
-#define TXB0D0_ADDR       	0x36 //Transmit Buffer 0 Data Byte 0 Register
-#define TXB0D1_ADDR       	0x37 //Transmit Buffer 0 Data Byte 1 Register
-#define TXB0D2_ADDR       	0x38 //Transmit Buffer 0 Data Byte 2 Register
-#define TXB0D3_ADDR       	0x39 //Transmit Buffer 0 Data Byte 3 Register
-#define TXB0D4_ADDR       	0x3A //Transmit Buffer 0 Data Byte 4 Register
-#define TXB0D5_ADDR       	0x3B //Transmit Buffer 0 Data Byte 5 Register
-#define TXB0D6_ADDR       	0x3C //Transmit Buffer 0 Data Byte 6 Register
-#define TXB0D7_ADDR       	0x3D //Transmit Buffer 0 Data Byte 7 Register
+//TODO Change name to less cryptic like previous register names
+#define TXB0SIDH_ADDR     	0x31 //TXB0SIDH: Transmit Buffer 0 Standard Identifier High Register
+#define TXB0SIDL_ADDR     	0x32 //TXB0SIDL: Transmit Buffer 0 Standard Identifier Low Register
+#define TXB0EID8_ADDR     	0x33 //TXB0EID8: Transmit Buffer 0 Extended Identifier High Register
+#define TXB0EID0_ADDR     	0x34 //TXB0EID0: Transmit Buffer 0 Extended Identifier Low Register
+#define TXB0DLC_ADDR      	0x35 //TXB0DLC: Transmit Buffer 0 Data Length Code Register
+#define TXB0D0_ADDR       	0x36 //TXB0D0: Transmit Buffer 0 Data Byte 0 Register
+#define TXB0D1_ADDR       	0x37 //TXB0D1: Transmit Buffer 0 Data Byte 1 Register
+#define TXB0D2_ADDR       	0x38 //TXB0D2: Transmit Buffer 0 Data Byte 2 Register
+#define TXB0D3_ADDR       	0x39 //TXB0D3: Transmit Buffer 0 Data Byte 3 Register
+#define TXB0D4_ADDR       	0x3A //TXB0D4: Transmit Buffer 0 Data Byte 4 Register
+#define TXB0D5_ADDR       	0x3B //TXB0D5: Transmit Buffer 0 Data Byte 5 Register
+#define TXB0D6_ADDR       	0x3C //TXB0D6: Transmit Buffer 0 Data Byte 6 Register
+#define TXB0D7_ADDR       	0x3D //TXB0D7: Transmit Buffer 0 Data Byte 7 Register
 
 //Transmit Buffer 1
+//TODO Change name to less cryptic like previous register names
+//TODO: input shorthand notation of register name in comments
 #define TXB1SIDH_ADDR     	0x41 //Transmit Buffer 1 Standard Identifier High Register
 #define TXB1SIDL_ADDR     	0x42 //Transmit Buffer 1 Standard Identifier Low Register
 #define TXB1EID8_ADDR     	0x43 //Transmit Buffer 1 Extended Identifier High Register
@@ -188,6 +213,8 @@ typedef struct{
 #define TXB1D7_ADDR       	0x4D //Transmit Buffer 1 Data Byte 7 Register
 
 //Transmit Buffer 2
+//TODO Change name to less cryptic like previous register names
+//TODO: input shorthand notation of register name in comments
 #define TXB2SIDH_ADDR     	0x51 //Transmit Buffer 2 Standard Identifier High Register
 #define TXB2SIDL_ADDR     	0x52 //Transmit Buffer 2 Standard Identifier Low Register
 #define TXB2EID8_ADDR     	0x53 //Transmit Buffer 2 Extended Identifier High Register
@@ -204,6 +231,8 @@ typedef struct{
 
 /******************Receive Buffer Registers******************/
 //Receive Buffer 0
+//TODO Change name to less cryptic like previous register names
+//TODO: input shorthand notation of register name in comments
 #define RXB0SIDH_ADDR     	0x61 //Receive Buffer 0 Standard Identifier High Register
 #define RXB0SIDL_ADDR     	0x62 //Receive Buffer 0 Standard Identifier Low Register
 #define RXB0EID8_ADDR     	0x63 //Receive Buffer 0 Extended Identifier High Register
@@ -219,6 +248,8 @@ typedef struct{
 #define RXB0D7_ADDR       	0x6D //Receive Buffer 0 Data Byte 7 Register
 
 //Receive Buffer 1
+//TODO Change name to less cryptic like previous register names
+//TODO: input shorthand notation of register name in comments
 #define RXB1SIDH_ADDR     	0x71 //Receive Buffer 1 Standard Identifier High Register
 #define RXB1SIDL_ADDR     	0x72 //Receive Buffer 1 Standard Identifier Low Register
 #define RXB1EID8_ADDR     	0x73 //Receive Buffer 1 Extended Identifier High Register
@@ -235,52 +266,54 @@ typedef struct{
 
 
 /******************I/O Control and Status Registers******************/
-#define BFPCTRL_ADDR_BTM	0x0C //RXnBF Pin Control and Status Register. BIT MODIFY (BTM) capable.
-#define TXRTSCTRL_ADDR_BTM	0x0D //TXnRTS Pin Control and Status Register. BIT MODIFY (BTM) capable.
+//TODO: input shorthand notation of register name in comments
+
+#define BFPCTRL_REG_ADDR_BTM	0x0C //RXnBF Pin Control and Status Register. BIT MODIFY (BTM) capable.
+#define TXRTSCTRL_REG_ADDR_BTM	0x0D //TXnRTS Pin Control and Status Register. BIT MODIFY (BTM) capable.
 
 /****************CAN Control and Status Registers****************/
-#define CANSTAT_ADDR      	0x0E //CAN Status Register. READ ONLY.
-#define CANCTRL_ADDR_BTM  	0x0F //CAN Control Register. BIT MODIFY (BTM) capable.
+#define CANSTATUS_REG_ADDR      	0x0E //CAN Status Register. READ ONLY.
+#define CANCTRL_REG_ADDR_BTM  		0x0F //CAN Control Register. BIT MODIFY (BTM) capable.
 
-#define CNF3_ADDR_BTM     	0x28 //Bit Timing Configuration Register 3. BIT MODIFY (BTM) capable.
-#define CNF2_ADDR_BTM     	0x29 //Bit Timing Configuration Register 2. BIT MODIFY (BTM) capable.
-#define CNF1_ADDR_BTM     	0x2A //Bit Timing Configuration Register 1. BIT MODIFY (BTM) capable.
+#define CNF3_REG_ADDR_BTM     	0x28 //Bit Timing Configuration Register 3. BIT MODIFY (BTM) capable.
+#define CNF2_REG_ADDR_BTM     	0x29 //Bit Timing Configuration Register 2. BIT MODIFY (BTM) capable.
+#define CNF1_REG_ADDR_BTM     	0x2A //Bit Timing Configuration Register 1. BIT MODIFY (BTM) capable.
 
-#define CANINTE_ADDR_BTM  	0x2B //CAN Interrupt Enable Register. BIT MODIFY (BTM) capable.
-#define CANINTF_ADDR_BTM  	0x2C //CAN Interrupt Flag Register. BIT MODIFY (BTM) capable.
+#define CAN_INTEN_REG_ADDR_BTM  	0x2B //CAN Interrupt Enable Register. BIT MODIFY (BTM) capable.
+#define CAN_INTF_REG_ADDR_BTM  		0x2C //CAN Interrupt Flag Register. BIT MODIFY (BTM) capable.
 
 /******************Transmit Buffer CTRL Registers******************/
-#define TXB0CTRL_ADDR_BTM  	0x30 //Transmit Buffer 0 Control Register. BIT MODIFY (BTM) capable.
-#define TXB1CTRL_ADDR_BTM  	0x40 //Transmit Buffer 1 Control Register. BIT MODIFY (BTM) capable.
-#define TXB2CTRL_ADDR_BTM  	0x50 //Transmit Buffer 2 Control Register. BIT MODIFY (BTM) capable.
+#define TXBUFFER0_CTRL_REG_ADDR_BTM  	0x30 //Transmit Buffer 0 Control Register. BIT MODIFY (BTM) capable.
+#define TXBUFFER1_CTRL_REG_ADDR_BTM  	0x40 //Transmit Buffer 1 Control Register. BIT MODIFY (BTM) capable.
+#define TXBUFFER2_CTRL_REG_ADDR_BTM  	0x50 //Transmit Buffer 2 Control Register. BIT MODIFY (BTM) capable.
 
 /******************Receive Buffer CTRL Registers******************/
-#define RXB0CTRL_ADDR_BTM  	0x60 //Receive Buffer 0 Control Register. BIT MODIFY (BTM) capable.
-#define RXB1CTRL_ADDR_BTM  	0x70 //Receive Buffer 1 Control Register. BIT MODIFY (BTM) capable.
+#define RXBUFFER0_CTRL_REG_ADDR_BTM  	0x60 //Receive Buffer 0 Control Register. BIT MODIFY (BTM) capable.
+#define RXBUFFER1_CTRL_REG_ADDR_BTM  	0x70 //Receive Buffer 1 Control Register. BIT MODIFY (BTM) capable.
 
 /**********************Error and Status Registers*******************/
-#define EFLG_ADDR_BTM     	0x2D //Error Flag Register. BIT MODIFY (BTM) capable.
-#define TEC_ADDR 	     	0x1C //Transmit Error Counter Register. READ ONLY.
-#define REC_ADDR 	     	0x1D //Receive Error Counter Register. READ ONLY.
+#define EFLG_REG_ADDR_BTM     	0x2D //Error Flag Register. BIT MODIFY (BTM) capable.
+#define TEC_REG_ADDR 	     	0x1C //Transmit Error Counter Register. READ ONLY.
+#define REC_REG_ADDR 	     	0x1D //Receive Error Counter Register. READ ONLY.
 
 /**********************END MCP2515 REGISTER ADDRESSES*******************/
 
 //@BitModify_Capable_Register
 typedef enum{
-	BFPCTRL_BTM 	= BFPCTRL_ADDR_BTM,
-	TXRTSCTRL_BTM 	= TXRTSCTRL_ADDR_BTM,
-	CANCTRL_BTM 	= CANCTRL_ADDR_BTM,
-	CNF3_BTM 		= CNF3_ADDR_BTM,
-	CNF2_BTM 		= CNF2_ADDR_BTM,
-	CNF1_BTM 		= CNF1_ADDR_BTM,
-	CANINTE_BTM 	= CANINTE_ADDR_BTM,
-	CANINTF_BTM 	= CANINTF_ADDR_BTM,
-	EFLG_BTM 		= EFLG_ADDR_BTM,
-	TXB0CTRL_BTM 	= TXB0CTRL_ADDR_BTM,
-	TXB1CTRL_BTM 	= TXB1CTRL_ADDR_BTM,
-	TXB2CTRL_BTM 	= TXB2CTRL_ADDR_BTM,
-	RXB0CTRL_BTM 	= RXB0CTRL_ADDR_BTM,
-	RXB1CTRL_BTM 	= RXB1CTRL_ADDR_BTM
+	BFPCTRL_BTM 	= BFPCTRL_REG_ADDR_BTM,
+	TXRTSCTRL_BTM 	= TXRTSCTRL_REG_ADDR_BTM,
+	CANCTRL_BTM 	= CANCTRL_REG_ADDR_BTM,
+	CNF3_BTM 		= CNF3_REG_ADDR_BTM,
+	CNF2_BTM 		= CNF2_REG_ADDR_BTM,
+	CNF1_BTM 		= CNF1_REG_ADDR_BTM,
+	CANINTE_BTM 	= CAN_INTEN_REG_ADDR_BTM,
+	CANINTF_BTM 	= CAN_INTF_REG_ADDR_BTM,
+	EFLG_BTM 		= EFLG_REG_ADDR_BTM,
+	TXB0CTRL_BTM 	= TXBUFFER0_CTRL_REG_ADDR_BTM,
+	TXB1CTRL_BTM 	= TXBUFFER1_CTRL_REG_ADDR_BTM,
+	TXB2CTRL_BTM 	= TXBUFFER2_CTRL_REG_ADDR_BTM,
+	RXB0CTRL_BTM 	= RXBUFFER0_CTRL_REG_ADDR_BTM,
+	RXB1CTRL_BTM 	= RXBUFFER1_CTRL_REG_ADDR_BTM
 }BTM_Registers_t;
 
 
@@ -398,5 +431,5 @@ void MCP2515_SPI_ReadRxBuffer(Read_RxBufferLoc_t RxBuffer_Loc, uint8_t *RxBuffer
 
 void MCP2515_SPI_RequestToSend(RTS_TxBuffer_t TxBuffer);
 
-void MCP2515_Init(MCP2515_Handle_t *MCP2515_handle);
+void MCP2515_Init(MCP2515_CFG_Handle_t *MCP2515_handle);
 #endif /* MCP2515_DRIVER_MCP2515_DRIVER_H_ */
