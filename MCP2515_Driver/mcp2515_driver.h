@@ -74,18 +74,14 @@ typedef enum{
 
 //Structure for storing RxBuffer0 filter values. Does not support Extended CAN frame identifiers.
 typedef struct{
-	uint16_t  	RxBuffer0_Filt0;		//RxBuffer0 Standard 11-bit Identifier Filter 0
-	uint16_t  	RxBuffer0_Filt1;		//RxBuffer0 Standard 11-bit Identifier Filter 1
+	uint16_t  	RxBuffer0_Filt[2];		//RxBuffer0 Standard 11-bit Identifier Filter 0 to Filter 1
 	uint16_t  	RxBuffer0_AcceptMask;	//RxBuffer0 Standard 11-bit Identifier Acceptance Mask
 }RxBuffer0_Filter_Val_t;
 
 
 //Structure for storing RxBuffer1 filter values. Does not support Extended CAN frame identifiers.
 typedef struct{
-	uint16_t  	RxBuffer1_Filt2;		//RxBuffer1 Standard 11-bit Identifier Filter 2
-	uint16_t  	RxBuffer1_Filt3;		//RxBuffer1 Standard 11-bit Identifier Filter 3
-	uint16_t  	RxBuffer1_Filt4;		//RxBuffer1 Standard 11-bit Identifier Filter 4
-	uint16_t  	RxBuffer1_Filt5;		//RxBuffer1 Standard 11-bit Identifier Filter 5
+	uint16_t  	RxBuffer1_Filt[4];		//RxBuffer1 Standard 11-bit Identifier Filter 2 to Filter 5
 	uint16_t  	RxBuffer1_AcceptMask;	//RxBuffer1 Standard 11-bit Identifier Acceptance Mask
 }RxBuffer1_Filter_Val_t;
 
@@ -98,8 +94,13 @@ typedef struct{
 	RxBuffer1_Filter_Val_t RxBuffer1_FILT;			//Input 11-bit Standard Identifier filters for RxBuffer1
 
 	//CAN Bus timing configuration parameters
-	uint8_t CAN_Speed_Kbps;			//Input desired CAN bus speed. Ref @CAN_Speed_CFG
-	uint8_t MCP2515_Osc; 			//Input oscillator frequency in MHz installed on your MCP2515 module/hardware
+	uint8_t CAN_Baud_PreScaler;		//CNF1: BRP[5:0] Baud Rate Prescaler bits. Values 0 to 63
+	uint8_t ProgDelay_TQ_Length;	//Propagation Delay length in Time Quanta. Ref @Propagation_Delay_Segment_Length
+	uint8_t PH1_Seg_TQ_Length;		//Phase 1 Segment length in Time Quanta. Ref @PHASEn_Segment_Length
+	uint8_t PH2_Seg_TQ_Length;		//Phase 2 Segment length in Time Quanta. Ref @PHASEn_Segment_Length
+	uint8_t SJW_TQ_Length;			//Synchronization Jump Width in Time Quanta. Ref @Synchronization_Jump_Width_Length
+	uint32_t CAN_Speed_Kbps;		//Input desired CAN bus speed in Hz. Ref @CAN_Speed_CFG
+	uint32_t MCP2515_Osc; 			//Input oscillator frequency in Hz installed on your MCP2515 module/hardware
 
 	//Interrupt Configuration Parameters
 	uint8_t INT_Enable_Mask;		//Specifies which interrupt events are to be enabled. Ref @Interrupt_Enable_Bits
@@ -107,30 +108,55 @@ typedef struct{
 
 
 //@RxBuffer_Filt_CFG
-#define RxBUFFER0_FILT_CFG_MASK	0X01 	//Configure RxBuffer0 Filters when this is set
-#define RxBUFFER1_FILT_CFG_MASK	0X02	//Configure RxBuffer1 Filters when this is set
+#define RxBUFFER0_FILT_CFG_MASK		0X01 	//Configure RxBuffer0 Filters when this is set
+#define RxBUFFER1_FILT_CFG_MASK		0X02	//Configure RxBuffer1 Filters when this is set
 
 //@CAN_Speed_CFG
-#define CAN_SPEED_500Kbps	0x05	//Flag for configuring CAN speed to 500Kbps
-#define CAN_SPEED_250Kbps	0x02	//Flag for configuring CAN speed to 250Kbps
+#define CAN_SPEED_500Kbps			500000	//CAN bus speed 500Kbps
+#define CAN_SPEED_250Kbps			250000	//CAN bus speed 250Kbps
 
 //@Interrupt_Enable_Bits
-#define RxBUFFER0_FULL_IE		1 << 0	//Receive Buffer 0 Full Interrupt Enable bit
-#define RxBUFFER1_FULL_IE		1 << 1	//Receive Buffer 1 Full Interrupt Enable bit
-#define TxBUFFER0_EMPTY_IE		1 << 2	//Transmit Buffer 0 Empty Interrupt Enable bit
-#define TxBUFFER1_EMPTY_IE		1 << 3	//Transmit Buffer 1 Empty Interrupt Enable bit
-#define TxBUFFER2_EMPTY_IE		1 << 4	//Transmit Buffer 2 Empty Interrupt Enable bit
-#define ERROR_IE				1 << 5	//Error Interrupt Enable bit (multiple sources in EFLG register)
-#define WAKEUP_IE				1 << 6	//Wake-up Interrupt Enable bit
-#define MESSAGE_ERR_IE			1 << 7	//Message Error Interrupt Enable bit
+#define RxBUFFER0_FULL_IE			1 << 0	//Receive Buffer 0 Full Interrupt Enable bit
+#define RxBUFFER1_FULL_IE			1 << 1	//Receive Buffer 1 Full Interrupt Enable bit
+#define TxBUFFER0_EMPTY_IE			1 << 2	//Transmit Buffer 0 Empty Interrupt Enable bit
+#define TxBUFFER1_EMPTY_IE			1 << 3	//Transmit Buffer 1 Empty Interrupt Enable bit
+#define TxBUFFER2_EMPTY_IE			1 << 4	//Transmit Buffer 2 Empty Interrupt Enable bit
+#define ERROR_IE					1 << 5	//Error Interrupt Enable bit (multiple sources in EFLG register)
+#define WAKEUP_IE					1 << 6	//Wake-up Interrupt Enable bit
+#define MESSAGE_ERR_IE				1 << 7	//Message Error Interrupt Enable bit
 
 //@MCP2515_Modes
-#define CONFIG_MODE			0x4
-#define NORMAL_MODE			0x0
-#define SLEEP_MODE			0x1
-#define LOOPBACK_MODE		0x2
-#define LISTEN_ONLY_MODE	0x3
+#define NORMAL_MODE					0x0 << 5
+#define SLEEP_MODE					0x1 << 5
+#define LOOPBACK_MODE				0x2 << 5
+#define LISTEN_ONLY_MODE			0x3 << 5
+#define CONFIG_MODE					0x4 << 5
 
+//@PHASEn_Segment_Length
+#define PHASEn_SEG_LEN_1TQ			0x00	//PHASEn Segment 1TQ length
+#define PHASEn_SEG_LEN_2TQ			0x01	//PHASEn Segment 2TQ length
+#define PHASEn_SEG_LEN_3TQ			0x02	//PHASEn Segment 3TQ length
+#define PHASEn_SEG_LEN_4TQ			0x03	//PHASEn Segment 4TQ length
+#define PHASEn_SEG_LEN_5TQ			0x04	//PHASEn Segment 5TQ length
+#define PHASEn_SEG_LEN_6TQ			0x05	//PHASEn Segment 6TQ length
+#define PHASEn_SEG_LEN_7TQ			0x06	//PHASEn Segment 7TQ length
+#define PHASEn_SEG_LEN_8TQ			0x07	//PHASEn Segment 8TQ length
+
+//@Propagation_Delay_Segment_Length
+#define PROG_DELAY_SEG_LEN_1TQ		0x00	//Propagation delay segment 1TQ length
+#define PROG_DELAY_SEG_LEN_2TQ		0x01	//Propagation delay segment 2TQ length
+#define PROG_DELAY_SEG_LEN_3TQ		0x02	//Propagation delay segment 3TQ length
+#define PROG_DELAY_SEG_LEN_4TQ		0x03	//Propagation delay segment 4TQ length
+#define PROG_DELAY_SEG_LEN_5TQ		0x04	//Propagation delay segment 5TQ length
+#define PROG_DELAY_SEG_LEN_6TQ		0x05	//Propagation delay segment 6TQ length
+#define PROG_DELAY_SEG_LEN_7TQ		0x06	//Propagation delay segment 7TQ length
+#define PROG_DELAY_SEG_LEN_8TQ		0x07	//Propagation delay segment 8TQ length
+
+//@Synchronization_Jump_Width_Length
+#define SJW_LEN_1TQ				0x00	//Synchronization Jump Width 1TQ length
+#define SJW_LEN_2TQ				0x01	//Synchronization Jump Width 2TQ length
+#define SJW_LEN_3TQ				0x02	//Synchronization Jump Width 3TQ length
+#define SJW_LEN_4TQ				0x03	//Synchronization Jump Width 4TQ length
 
 
 /**********************MCP2515 REGISTER ADDRESSES*******************/
@@ -139,33 +165,33 @@ typedef struct{
 /*****Acceptance Filter Registers*****/
 //Receive Buffer0 Filters
 //TODO: input shorthand notation of register name in comments
-#define RxBUFFER0_FILTER_SIDH_REG_ADDR     	0x00 //Filter 0 Standard Identifier High Register
-#define RxBUFFER0_FILTER_SIDL_REG_ADDR     	0x01 //Filter 0 Standard Identifier Low Register
-#define RxBUFFER0_FILTER_EID8_REG_ADDR  	0x02 //Filter 0 Extended Identifier High Register
-#define RxBUFFER0_FILTER_EID0_REG_ADDR     	0x03 //Filter 0 Extended Identifier Low Register
-#define RxBUFFER1_FILTER_SIDH_REG_ADDR    	0x04 //Filter 1 Standard Identifier High Register
-#define RxBUFFER1_FILTER_SIDL_REG_ADDR    	0x05 //Filter 1 Standard Identifier Low Register
-#define RxBUFFER1_FILTER_EID8_REG_ADDR    	0x06 //Filter 1 Extended Identifier High Register
-#define RxBUFFER1_FILTER_EID0_REG_ADDR    	0x07 //Filter 1 Extended Identifier Low Register
+#define RxBUFFER0_FILTER0_SIDH_REG_ADDR     0x00 //Filter 0 Standard Identifier High Register
+#define RxBUFFER0_FILTER0_SIDL_REG_ADDR     0x01 //Filter 0 Standard Identifier Low Register
+#define RxBUFFER0_FILTER0_EID8_REG_ADDR  	0x02 //Filter 0 Extended Identifier High Register
+#define RxBUFFER0_FILTER0_EID0_REG_ADDR     0x03 //Filter 0 Extended Identifier Low Register
+#define RxBUFFER0_FILTER1_SIDH_REG_ADDR    	0x04 //Filter 1 Standard Identifier High Register
+#define RxBUFFER0_FILTER1_SIDL_REG_ADDR    	0x05 //Filter 1 Standard Identifier Low Register
+#define RxBUFFER0_FILTER1_EID8_REG_ADDR    	0x06 //Filter 1 Extended Identifier High Register
+#define RxBUFFER0_FILTER1_EID0_REG_ADDR    	0x07 //Filter 1 Extended Identifier Low Register
 
 //Receive Buffer1  Filters
 //TODO: input shorthand notation of register name in comments
-#define RxBUFFER2_FILTER_SIDH_REG_ADDR     	0x08 //Filter 2 Standard Identifier High Register
-#define RxBUFFER2_FILTER_SIDL_REG_ADDR    	0x09 //Filter 2 Standard Identifier Low Register
-#define RxBUFFER2_FILTER_EID8_REG_ADDR     	0x0A //Filter 2 Extended Identifier High Register
-#define RxBUFFER2_FILTER_EID0_REG_ADDR     	0x0B //Filter 2 Extended Identifier Low Register
-#define RxBUFFER3_FILTER_SIDH_REG_ADDR     	0x10 //Filter 3 Standard Identifier High Register
-#define RxBUFFER3_FILTER_SIDL_REG_ADDR     	0x11 //Filter 3 Standard Identifier Low Register
-#define RxBUFFER3_FILTER_EID8_REG_ADDR     	0x12 //Filter 3 Extended Identifier High Register
-#define RxBUFFER3_FILTER_EID0_REG_ADDR     	0x13 //Filter 3 Extended Identifier Low Register
-#define RxBUFFER4_FILTER_SIDH_REG_ADDR     	0x14 //Filter 4 Standard Identifier High Register
-#define RxBUFFER4_FILTER_SIDL_REG_ADDR     	0x15 //Filter 4 Standard Identifier Low Register
-#define RxBUFFER4_FILTER_EID8_REG_ADDR     	0x16 //Filter 4 Extended Identifier High Register
-#define RxBUFFER4_FILTER_EID0_REG_ADDR     	0x17 //Filter 4 Extended Identifier Low Register
-#define RxBUFFER5_FILTER_SIDH_REG_ADDR     	0x18 //Filter 5 Standard Identifier High Register
-#define RxBUFFER5_FILTER_SIDL_REG_ADDR     	0x19 //Filter 5 Standard Identifier Low Register
-#define RxBUFFER5_FILTER_EID8_REG_ADDR     	0x1A //Filter 5 Extended Identifier High Register
-#define RxBUFFER5_FILTER_EID0_REG_ADDR     	0x1B //Filter 5 Extended Identifier Low Register
+#define RxBUFFER1_FILTER2_SIDH_REG_ADDR     0x08 //Filter 2 Standard Identifier High Register
+#define RxBUFFER1_FILTER2_SIDL_REG_ADDR    	0x09 //Filter 2 Standard Identifier Low Register
+#define RxBUFFER1_FILTER2_EID8_REG_ADDR     0x0A //Filter 2 Extended Identifier High Register
+#define RxBUFFER1_FILTER2_EID0_REG_ADDR     0x0B //Filter 2 Extended Identifier Low Register
+#define RxBUFFER1_FILTER3_SIDH_REG_ADDR     0x10 //Filter 3 Standard Identifier High Register
+#define RxBUFFER1_FILTER3_SIDL_REG_ADDR     0x11 //Filter 3 Standard Identifier Low Register
+#define RxBUFFER1_FILTER3_EID8_REG_ADDR     0x12 //Filter 3 Extended Identifier High Register
+#define RxBUFFER1_FILTER3_EID0_REG_ADDR     0x13 //Filter 3 Extended Identifier Low Register
+#define RxBUFFER1_FILTER4_SIDH_REG_ADDR     0x14 //Filter 4 Standard Identifier High Register
+#define RxBUFFER1_FILTER4_SIDL_REG_ADDR     0x15 //Filter 4 Standard Identifier Low Register
+#define RxBUFFER1_FILTER4_EID8_REG_ADDR     0x16 //Filter 4 Extended Identifier High Register
+#define RxBUFFER1_FILTER4_EID0_REG_ADDR     0x17 //Filter 4 Extended Identifier Low Register
+#define RxBUFFER1_FILTER5_SIDH_REG_ADDR     0x18 //Filter 5 Standard Identifier High Register
+#define RxBUFFER1_FILTER5_SIDL_REG_ADDR     0x19 //Filter 5 Standard Identifier Low Register
+#define RxBUFFER1_FILTER5_EID8_REG_ADDR     0x1A //Filter 5 Extended Identifier High Register
+#define RxBUFFER1_FILTER5_EID0_REG_ADDR     0x1B //Filter 5 Extended Identifier Low Register
 
 /*****Acceptance Filter Mask Registers*****/
 //TODO: input shorthand notation of register name in comments
@@ -432,4 +458,5 @@ void MCP2515_SPI_ReadRxBuffer(Read_RxBufferLoc_t RxBuffer_Loc, uint8_t *RxBuffer
 void MCP2515_SPI_RequestToSend(RTS_TxBuffer_t TxBuffer);
 
 void MCP2515_Init(MCP2515_CFG_Handle_t *MCP2515_handle);
+void MCP2515_CAN_Transmit(uint8_t *TxBuffer, uint8_t data_length);
 #endif /* MCP2515_DRIVER_MCP2515_DRIVER_H_ */

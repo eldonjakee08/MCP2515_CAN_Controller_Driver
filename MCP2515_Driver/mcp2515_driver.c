@@ -16,9 +16,10 @@ static void MCP2515_SPI_TransmitReceive(uint8_t *TxBuffer, uint8_t command_byte_
 //dummy byte for clocking out slave data during reception
 const uint8_t dummy_byte = 0x00;
 
-
 //Register mask temp
 static uint8_t register_mask_temp[3] = {0};
+
+uint8_t global_RxBuffer[8] = {0};
 
 /****************************************************************
  * @brief 	Transmit data to MCP2515 through SPI
@@ -97,6 +98,7 @@ void MCP2515_SPI_Reset(void){
  * @brief 	Sends the contents of one or more transmit buffers onto the CAN bus.
  *
  * @param	TxBuffer: The transmit buffer(s) to send. @RTS_TxBuffer_t
+ * TODO: not yet verified if it works
  */
 void MCP2515_SPI_RequestToSend(RTS_TxBuffer_t TxBuffer){
 
@@ -159,6 +161,7 @@ void MCP2515_SPI_WriteRegister(uint8_t start_address, uint8_t *DataBuffer, uint8
  * @param	TxBuffer_Loc: The location from which to start writing. Refer to @Load_TxBufferLoc_t for TxBuffer locations
  * @param	*DataBuffer: Pointer to the data buffer to be written into register.
  * @param	data_length: Number of bytes to write.
+ * TODO: not yet verified if it works
  */
 void MCP2515_SPI_LoadTxBuffer(Load_TxBufferLoc_t TxBuffer_Loc,  uint8_t *DataBuffer, uint8_t data_length){
 
@@ -257,6 +260,7 @@ void MCP2515_SPI_ReadRegister(uint8_t start_address, uint8_t *RxBuffer, uint8_t 
  *
  * @NOTE: 	Ensure that start_address + rxbuffer_size does not exceed 0x7D (last register address)
  * @NOTE: 	This will fill out all of RxBuffer elements
+ * TODO: not yet verified if it works
  */
 void MCP2515_SPI_ReadRxBuffer(Read_RxBufferLoc_t RxBuffer_Loc, uint8_t *RxBuffer, uint8_t rxbuffer_size){
 
@@ -296,13 +300,61 @@ void MCP2515_Init(MCP2515_CFG_Handle_t *MCP2515_handle){
 		MCP2515_SPI_BitModify(CANINTE_BTM, 0xFF, MCP2515_handle->INT_Enable_Mask);
 	}
 
-	//TODO: CAN TIMING and BAUDRATE initializations
+	/*********CAN Timing Initialization***************/
+	//period for 1 Time Quanta, multiply by 1e9 to up-scale
+	uint32_t TQ_period = ( ( 2 * (MCP2515_handle->CAN_Baud_PreScaler + 1) * 1000000000 ) / MCP2515_handle->MCP2515_Osc );
+
+	//Period for 1 bit time, multiply by 1e9 to up-scale
+	uint32_t Bit_period = (1000000000 / MCP2515_handle->CAN_Speed_Kbps);
+
+	//number of time quanta per bit
+	uint8_t  TQ = Bit_period / TQ_period;
+
+	//Time Quanta length per bit should be >= 8 as per MCP2515 specification
+	if(TQ >= 8){
+		//check if Segments TQ lengthS conform to MCP2515 requirements
+		if( (MCP2515_handle->ProgDelay_TQ_Length + MCP2515_handle->PH1_Seg_TQ_Length + 2) < (MCP2515_handle->PH2_Seg_TQ_Length + 1)   ||
+				(MCP2515_handle->ProgDelay_TQ_Length + MCP2515_handle->PH1_Seg_TQ_Length + 2) < (MCP2515_handle->ProgDelay_TQ_Length + 1) ||
+				(MCP2515_handle->PH2_Seg_TQ_Length + 1) < (MCP2515_handle->SJW_TQ_Length + 1) ||
+				(MCP2515_handle->PH2_Seg_TQ_Length + 1) < 2 ) return;
+
+		//set BTLMODE for PH2_Seg length to be independent of PH1_Seg and IPT
+		MCP2515_SPI_BitModify(CNF2_BTM, 0x80, 0x80);
+
+		//calculate byte for CNF1 register
+		register_mask_temp[0] = ( (MCP2515_handle->SJW_TQ_Length << 6) ) | (MCP2515_handle->CAN_Baud_PreScaler & 0x1F);
+		//write into CNF1 register
+		MCP2515_SPI_BitModify(CNF1_BTM, 0xFF, register_mask_temp[0]);
+
+		//calculate byte for CNF2 register
+		register_mask_temp[0] = ( (MCP2515_handle->PH1_Seg_TQ_Length << 3) ) | (MCP2515_handle->ProgDelay_TQ_Length & 0x07);
+		//write into CNF2 register
+		MCP2515_SPI_BitModify(CNF2_BTM, 0x3F, register_mask_temp[0]);
+
+		//write PHASE2 Segment Length into CNF3 register
+		MCP2515_SPI_BitModify(CNF3_BTM, 0x07,  MCP2515_handle->PH2_Seg_TQ_Length);
+	}
 
 	//set to Normal mode after all config is done
 	MCP2515_SPI_BitModify(CANCTRL_BTM, 0xE0, NORMAL_MODE);
+}
 
+
+/**********************************************************************T
+ * @brief 	Sends data into the CAN bus
+ *
+ * @param	*TxBuffer: pointer to the data to be transmitted
+ * @param	data_length: length of data to be transmitted in bytes
+ *
+ * @NOTE: 	ONLY supports Standard CAN frame format. Does not support Extended CAN Frame for now.
+ * TODO: finalize code for CAN Transmit
+ * TODO: verify if it works
+ */
+void MCP2515_CAN_Transmit(uint8_t *TxBuffer, uint8_t data_length){
 
 }
+
+
 
 
 /**********************************************************************T
@@ -313,6 +365,9 @@ void MCP2515_Init(MCP2515_CFG_Handle_t *MCP2515_handle){
  * @NOTE: 	ONLY supports Standard CAN frame format. Does not support Extended CAN Frame for now.
  */
 static void MCP2515_Filters_Init(MCP2515_CFG_Handle_t *MCP2515_handle){
+
+	uint8_t register_address = 0;
+
 	//Configure RxBuffer0 Filters if specified
 	if( (MCP2515_handle->RxBUFFERn_FILT_CFG & RxBUFFER0_FILT_CFG_MASK) != 0){
 
@@ -325,28 +380,21 @@ static void MCP2515_Filters_Init(MCP2515_CFG_Handle_t *MCP2515_handle){
 		//write acceptance mask into registers RXM0SIDH to RXM0SIDL
 		MCP2515_SPI_WriteRegister(RxBUFFER0_MASK_SIDH_REG_ADDR, register_mask_temp, 2);
 
-		//Rxbuffer0 filter 0
-		if(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt0 != 0){
-			//extract bits [10:3] of 11-Bit SID (Standard Identifier) filter to write into RXF0SIDH
-			register_mask_temp[0] = (uint8_t)(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt0 >> 3);
+		//loop through all filters in Rxbuffer0
+		for(uint8_t i = 0; i < 2; i++){
+			if(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt[i] != 0){
+				//extract bits [10:3] of 11-Bit SID (Standard Identifier) filter to write into RXF0SIDH
+				register_mask_temp[0] = (uint8_t)(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt[i] >> 3);
 
-			//extract bits [2:0] of 11-Bit SID filter to write into RXF0SIDL
-			register_mask_temp[1] = (uint8_t)(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt0 << 5);
+				//extract bits [2:0] of 11-Bit SID filter to write into RXF0SIDL
+				register_mask_temp[1] = (uint8_t)(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt[i] << 5);
 
-			//write filter into registers RXF0SIDH to RXF0SIDL
-			MCP2515_SPI_WriteRegister(RxBUFFER0_FILTER_SIDH_REG_ADDR, register_mask_temp, 2);
-		}
+				//increment to RxBUFFER0_FILTER1_SIDH_REG_ADDR
+				register_address = ( RxBUFFER0_FILTER0_SIDH_REG_ADDR + (i * 4) );
 
-		//RxBuffer0 filter 1
-		if(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt1 != 0){
-			//extract bits [10:3] of 11-Bit SID (Standard Identifier) filter to write into RXF1SIDH
-			register_mask_temp[0] = (uint8_t)(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt1 >> 3);
-
-			//extract bits [2:0] of 11-Bit SID filter to write into RXF1SIDL
-			register_mask_temp[1] = (uint8_t)(MCP2515_handle->RxBuffer0_FILT.RxBuffer0_Filt1 << 5);
-
-			//write filter into registers RXF1SIDH to RXF1SIDL
-			MCP2515_SPI_WriteRegister(RxBUFFER0_FILTER_SIDH_REG_ADDR, register_mask_temp, 2);
+				//write filter into registers RXF0SIDH to RXF0SIDL
+				MCP2515_SPI_WriteRegister(register_address, register_mask_temp, 2);
+			}
 		}
 	}
 
@@ -362,56 +410,38 @@ static void MCP2515_Filters_Init(MCP2515_CFG_Handle_t *MCP2515_handle){
 		//write acceptance mask into registers RXM1SIDH to RXM1SIDL
 		MCP2515_SPI_WriteRegister(RxBUFFER1_MASK_SIDH_REG_ADDR, register_mask_temp, 2);
 
-		//RxBuffer1 filter 2
-		if(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt2 != 0){
-			//extract bits [10:3] of 11-Bit SID (Standard Identifier) filter to write into RXF2SIDH
-			register_mask_temp[0] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt2 >> 3);
+		//loop through all filters in Rxbuffer1
+		for(uint8_t i = 0; i < 4; i++){
 
-			//extract bits [2:0] of 11-Bit SID filter to write into RXF2SIDL
-			register_mask_temp[1] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt2 << 5);
+			if(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt[i] != 0){
+				//extract bits [10:3] of 11-Bit SID (Standard Identifier) filter to write into RXF0SIDH
+				register_mask_temp[0] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt[i] >> 3);
 
-			//write filter into registers RXF2SIDH to RXF2SIDL
-			MCP2515_SPI_WriteRegister(RxBUFFER2_FILTER_SIDH_REG_ADDR, register_mask_temp, 2);
-		}
+				//extract bits [2:0] of 11-Bit SID filter to write into RXF0SIDL
+				register_mask_temp[1] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt[i] << 5);
 
-		//RxBuffer1 filter 3
-		if(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt3 != 0){
-			//extract bits [10:3] of 11-Bit SID (Standard Identifier) filter to write into RXF3SIDH
-			register_mask_temp[0] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt3 >> 3);
+				//if at Filter 3 and up
+				if(i > 0){
+					register_address = ( RxBUFFER1_FILTER3_SIDH_REG_ADDR + ( (i-1) * 4 ) );
+				}else{
+					//if at i = 0, use address RxBUFFER1_FILTER2_SIDH_REG_ADDR
+					register_address = RxBUFFER1_FILTER2_SIDH_REG_ADDR;
+				}
 
-			//extract bits [2:0] of 11-Bit SID filter to write into RXF3SIDL
-			register_mask_temp[1] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt3 << 5);
+				//write filter into registers RXF0SIDH to RXF0SIDL
+				MCP2515_SPI_WriteRegister(register_address, register_mask_temp, 2);
+			}
 
-			//write filter into registers RXF3SIDH to RXF3SIDL
-			MCP2515_SPI_WriteRegister(RxBUFFER3_FILTER_SIDH_REG_ADDR, register_mask_temp, 2);
-		}
-
-		//RxBuffer1 filter 4
-		if(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt4 != 0){
-			//extract bits [10:3] of 11-Bit SID (Standard Identifier) filter to write into RXF4SIDH
-			register_mask_temp[0] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt4 >> 3);
-
-			//extract bits [2:0] of 11-Bit SID filter to write into RXF4SIDL
-			register_mask_temp[1] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt4 << 5);
-
-			//write filter into registers RXF4SIDH to RXF4SIDL
-			MCP2515_SPI_WriteRegister(RxBUFFER4_FILTER_SIDH_REG_ADDR, register_mask_temp, 2);
-		}
-
-		//RxBuffer1 filter 5
-		if(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt5 != 0){
-			//extract bits [10:3] of 11-Bit SID (Standard Identifier) filter to write into RXF5SIDH
-			register_mask_temp[0] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt5 >> 3);
-
-			//extract bits [2:0] of 11-Bit SID filter to write into RXF5SIDL
-			register_mask_temp[1] = (uint8_t)(MCP2515_handle->RxBuffer1_FILT.RxBuffer1_Filt5 << 5);
-
-			//write filter into registers RXF5SIDH to RXF5SIDL
-			MCP2515_SPI_WriteRegister(RxBUFFER5_FILTER_SIDH_REG_ADDR, register_mask_temp, 2);
 		}
 	}
 }
 
 /********************************INTERRUPT HANDLER*****************************************/
+void EXTI0_IRQHandler(void)
+{
+
+  HAL_GPIO_EXTI_IRQHandler(CAN_INT_Pin);
 
 
+
+}
