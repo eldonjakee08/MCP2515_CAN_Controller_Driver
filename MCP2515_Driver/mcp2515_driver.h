@@ -473,5 +473,7 @@ void MCP2515_SPI_ReadRxBuffer(Read_RxBufferLoc_t RxBuffer_Loc, uint8_t *RxBuffer
 void MCP2515_SPI_RequestToSend(RTS_TxBuffer_t TxBuffer);
 
 void MCP2515_Init(MCP2515_CFG_Handle_t *MCP2515_handle);
+
 CAN_Tx_Status_t MCP2515_CAN_Transmit_Single_TxBuffer(uint8_t Send_TxBuffern, uint16_t ArbitrationID, uint8_t *DataBuffer, uint8_t DataLength);
+void MCP2515_CAN_Receive_INT(void);
 #endif /* MCP2515_DRIVER_MCP2515_DRIVER_H_ */

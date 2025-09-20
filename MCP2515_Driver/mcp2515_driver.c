@@ -46,7 +46,8 @@ static void MCP2515_SPI_Transmit(uint8_t *DataBuffer, uint8_t DataLength){
  */
 static void MCP2515_SPI_TransmitReceive(uint8_t *TxBuffer, uint8_t command_byte_length, uint8_t *RxBuffer, uint8_t rxbuffer_size) {
 
-	if(command_byte_length == 1){
+	switch (command_byte_length) {
+	case 1:
 		HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_RESET); //Pull CS low to enable MCP2515
 
 		/*********************************************************************
@@ -62,8 +63,8 @@ static void MCP2515_SPI_TransmitReceive(uint8_t *TxBuffer, uint8_t command_byte_
 		 * TxBuffer[0] data is trash, ignore
 		 *********************************************************************/
 		memcpy(RxBuffer, &TxBuffer[1], rxbuffer_size);
-	}
-	else if(command_byte_length == 2){
+		break;
+	case 2:
 		HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_RESET); //Pull CS low to enable MCP2515
 		/*********************************************************************
 		 * send command through SPI polling mode, DMA for future optimization
@@ -78,6 +79,7 @@ static void MCP2515_SPI_TransmitReceive(uint8_t *TxBuffer, uint8_t command_byte_
 		 * TxBuffer[0] & TxBuffer[1] data is trash, ignore
 		 *********************************************************************/
 		memcpy(RxBuffer, &TxBuffer[2], rxbuffer_size);
+		break;
 	}
 }
 
@@ -86,6 +88,8 @@ static void MCP2515_SPI_TransmitReceive(uint8_t *TxBuffer, uint8_t command_byte_
  * @brief 	Resets internal registers to the default state. After reset, MCP2515 is in Configuration mode.
  */
 void MCP2515_SPI_Reset(void){
+
+
 	uint8_t commandByte = SPI_COMMAND_RESET;
 	MCP2515_SPI_Transmit(&commandByte, 1);
 }
@@ -275,8 +279,7 @@ uint8_t MCP2515_SPI_Read_SingleRegister(uint8_t start_address){
 
 
 /***************************************************************************************
- * @brief 	When reading a receive buffer, reduces the overhead of a normal READ command
- * 			by placing the Address Pointer at one of four locations.
+ * @brief 	Reads the RxBuffer contents.
  *
  * @param	RxBuffer_Loc: RxBuffer location which to start reading. @Read_RxBufferLoc_t
  * @param 	*RxBuffer: pointer to Rxbuffer to store received data.
@@ -284,7 +287,6 @@ uint8_t MCP2515_SPI_Read_SingleRegister(uint8_t start_address){
  *
  * @NOTE: 	Ensure that start_address + rxbuffer_size does not exceed 0x7D (last register address)
  * @NOTE: 	This will fill out all of RxBuffer elements
- * TODO: not yet verified if it works
  */
 void MCP2515_SPI_ReadRxBuffer(Read_RxBufferLoc_t RxBuffer_Loc, uint8_t *RxBuffer, uint8_t rxbuffer_size){
 
@@ -381,13 +383,13 @@ void MCP2515_Init(MCP2515_CFG_Handle_t *MCP2515_handle){
 /***************************************************************************************
  * @brief 	Sends data into the CAN bus using a single TxBuffer
  *
- * @param	Send_TxBuffern: TxBuffer number to transmit into CAN bus. Ref @Send_TxBuffer
+ * @param	Send_TxBuffern: TxBuffer number used to transmit to CAN bus. Ref @Send_TxBuffer
  * @param	ArbitrationID: Standard 11-bit identifier for the CAN frame
  * @param	*DataBuffer: pointer to the data buffer to be transmitted
  * @param	DataLength: length of data to be transmitted in bytes. Make sure to set DataLength <= sizeof(DataBuffer)
  *
  * @NOTE: 	ONLY supports Standard CAN frame format. Does not support Extended CAN Frame for now.
- * TODO: verify if it works
+ * TODO for testing and verification
  */
 CAN_Tx_Status_t MCP2515_CAN_Transmit_Single_TxBuffer(uint8_t Send_TxBuffern, uint16_t ArbitrationID, uint8_t *DataBuffer, uint8_t DataLength){
 
@@ -455,6 +457,7 @@ CAN_Tx_Status_t MCP2515_CAN_Transmit_Single_TxBuffer(uint8_t Send_TxBuffern, uin
 		//RTS_TxBuffer_t command
 		TxBuffer_temp[RTS_Index] = RTS_TxBUFFER2;
 		break;
+
 	default:
 		return ERR_INVALID_INPUT;
 		break;
@@ -580,8 +583,9 @@ static void MCP2515_Filters_Init(MCP2515_CFG_Handle_t *MCP2515_handle){
 }
 
 /********************************INTERRUPT HANDLER*****************************************/
+
 /**********************************************************************
- * @brief 	Interrupt service routine, at the event of successful reception (filter match) MCP2515 generates interrupt
+ * @brief 	Interrupt service routine, at the event of successful reception (filter match) MCP2515 generates an interrupt
  */
 void EXTI0_IRQHandler(void)
 {
@@ -589,5 +593,10 @@ void EXTI0_IRQHandler(void)
   HAL_GPIO_EXTI_IRQHandler(CAN_INT_Pin);
 
 
+
+}
+//TODO: implement this ISR
+//Message reception interrupt service routine
+void MCP2515_CAN_Receive_INT(void){
 
 }
