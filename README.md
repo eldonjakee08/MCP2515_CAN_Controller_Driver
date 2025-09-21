@@ -11,7 +11,7 @@ Repo Link: https://github.com/eldonjakee08/MOTOHUD_Project
 3. Create an init helper function and call it during the initialization phase in main.c.<br>
    <img width="475" height="355" alt="image" src="https://github.com/user-attachments/assets/77a9b812-6a8d-4791-a042-56c4d520006e"/><br>
 
-4. Inside the init helper function, fill the MCP2515_CFG_Handle_t with the desired configuration settings of MCP2515. Call the MCP2515_Init() function with the handle pointer as input argument to initialize MCP2515. 
+4. Inside the init helper function, fill the MCP2515_CFG_Handle_t with the desired configuration settings for MCP2515. Call the MCP2515_Init() function with the handle pointer as input argument to initialize MCP2515. 
    <img width="926" height="559" alt="image" src="https://github.com/user-attachments/assets/765f0277-e228-40c6-8741-3be3618c24eb" /><br>
 
    Note: refer to MCP2515_CFG_Handle_t in mcp2515_driver.h file for the configuration parameters definition. <br>
