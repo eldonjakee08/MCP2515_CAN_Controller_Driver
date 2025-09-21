@@ -4,20 +4,21 @@ MCP2515 standalone CAN controller driver ported for STM32WB5MMG MCU which will b
 Repo Link: https://github.com/eldonjakee08/MOTOHUD_Project
 
 # Hot To Use The Driver
-1. Define a MCP2515_CFG_Handle_t, this will be used to store the configuration setting for MCP2515.
+1. inlude the mcp2515_driver.h header file into your main.c file.
+2. Define a MCP2515_CFG_Handle_t, this will be used to store the configuration setting for MCP2515.
    <img width="439" height="96" alt="image" src="https://github.com/user-attachments/assets/9ea7857c-e5d1-4751-9010-4b6c8cd3e7cc" /><br>
 
-2. Create an init helper function and call it during the initialization phase in main.c.<br>
+3. Create an init helper function and call it during the initialization phase in main.c.<br>
    <img width="475" height="355" alt="image" src="https://github.com/user-attachments/assets/77a9b812-6a8d-4791-a042-56c4d520006e"/><br>
 
-3. Inside the init helper function, fill the MCP2515_CFG_Handle_t with the desired configuration settings of MCP2515. Call the MCP2515_Init() function with the handle pointer as input argument to initialize MCP2515. 
+4. Inside the init helper function, fill the MCP2515_CFG_Handle_t with the desired configuration settings of MCP2515. Call the MCP2515_Init() function with the handle pointer as input argument to initialize MCP2515. 
    <img width="926" height="559" alt="image" src="https://github.com/user-attachments/assets/765f0277-e228-40c6-8741-3be3618c24eb" /><br>
 
    Note: refer to MCP2515_CFG_Handle_t in mcp2515_driver.h file for the configuration parameters definition. <br>
 
-4. After initialization you can now call the MCP2515 APIs.<br>
+5. After initialization you can now call the MCP2515 APIs.<br>
 
-5. Message reception from CAN bus is handle through an Interrupt Service Routine (on-going development)
+6. Message reception from CAN bus is handle through an Interrupt Service Routine (on-going development)
    
 # MCP2515 APIs
 1. MCP2515_SPI_Reset()
