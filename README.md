@@ -18,7 +18,7 @@ Repo Link: https://github.com/eldonjakee08/MOTOHUD_Project
 
 5. After initialization you can now call the MCP2515 APIs.<br>
 
-6. Message reception from CAN bus is handle through an Interrupt Service Routine (on-going development)
+6. Message reception from CAN bus is handled through an Interrupt Service Routine (on-going development)
    
 # MCP2515 APIs
 1. MCP2515_SPI_Reset()
