@@ -5,7 +5,7 @@ Repo Link: https://github.com/eldonjakee08/MOTOHUD_Project
 
 # Hot To Use The Driver
 1. inlude the mcp2515_driver.h header file into your main.c file.
-2. Define a MCP2515_CFG_Handle_t, this will be used to store the configuration setting for MCP2515.
+2. Define a MCP2515_CFG_Handle_t, this will be used to store the configuration settings for MCP2515.
    <img width="439" height="96" alt="image" src="https://github.com/user-attachments/assets/9ea7857c-e5d1-4751-9010-4b6c8cd3e7cc" /><br>
 
 3. Create an init helper function and call it during the initialization phase in main.c.<br>
